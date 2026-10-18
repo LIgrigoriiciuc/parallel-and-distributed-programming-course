@@ -78,6 +78,29 @@ void update(int pid, u64 new_value){
     if (use_global) pthread_mutex_unlock(&global_lock);
     else pthread_mutex_unlock(&p->lock);
 }
+
+int check(){
+    int ok = 1;
+    if (use_global) pthread_mutex_lock(&global_lock);
+    else {
+        for (int i=0;i<N;i++)
+            pthread_mutex_lock(&vars[i].lock);
+    }
+    for (int i=NP;i<N;i++){
+        u64 v = vars[vars[i].in1].value + vars[vars[i].in2].value;
+        if (v != vars[i].value){
+            printf("check failed for %d: %llu != %llu + %llu\n",i,(unsigned long long)vars[i].value,(unsigned long long)vars[vars[i].in1].value,(unsigned long long)vars[vars[i].in2].value);
+            ok = 0;
+            break;
+        }
+    }
+    if (use_global) pthread_mutex_unlock(&global_lock);
+    else {
+        for (int i=0;i<N;i++)
+            pthread_mutex_unlock(&vars[i].lock);
+    }
+    return ok;
+}
     
 void *work(void *arg){
     printf("hello from the thread\n");
