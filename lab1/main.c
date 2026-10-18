@@ -19,7 +19,8 @@ Var *vars;
 int N; //total number of variables
 int NP; //number of primary variables
 int use_global; //0=one mutex per variable fine grained
-pthread_mutex_t global_lock = PTHREAD_MUTEX_INITIALIZER;
+int workers_done = 0;
+pthread_mutex_t done_lock = PTHREAD_MUTEX_INITIALIZER;
 
 void build_graph(){
     vars = calloc(N, sizeof(Var));
@@ -100,6 +101,24 @@ int check(){
             pthread_mutex_unlock(&vars[i].lock);
     }
     return ok;
+}
+
+typedef struct {
+    int ops;
+    unsigned int seed;
+} ThreadArgs;
+
+void *thread_func(void *arg){
+    ThreadArgs *args = (ThreadArgs*)arg;
+    for (int i=0;i<args->ops;i++){
+        int pid = rand_r(&args->seed)%NP;
+        u64 new_value = rand_r(&args->seed)%1000;
+        update(pid,new_value);
+    }
+    pthread_mutex_lock(&done_lock);
+    workers_done++;
+    pthread_mutex_unlock(&done_lock);
+    return NULL;
 }
     
 void *work(void *arg){
