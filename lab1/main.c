@@ -59,6 +59,25 @@ void build_graph(){
     }
     free(paths);
 }
+
+void update(int pid, u64 new_value){
+    Var *p = &vars[pid];
+    if (use_global) pthread_mutex_lock(&global_lock);
+    else pthread_mutex_lock(&p->lock);
+    u64 delta = new_value - p->value;
+    p->value = new_value;
+    for(int k=0;k<p->n_affected;k++){
+        int s = p->affected[k];
+        u64 d = delta * p->mult[k];
+        if (!use_global)
+        pthread_mutex_lock(&vars[s].lock);
+        vars[s].value += d;
+        if (!use_global)
+        pthread_mutex_unlock(&vars[s].lock);
+    }
+    if (use_global) pthread_mutex_unlock(&global_lock);
+    else pthread_mutex_unlock(&p->lock);
+}
     
 void *work(void *arg){
     printf("hello from the thread\n");
