@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <time.h>
+#include <unistd.h>
 
 typedef uint64_t u64;
 typedef struct {
@@ -82,7 +84,6 @@ void update(int pid, u64 new_value){
 }
 
 int check(){
-    int ok = 1;
     if (use_global) pthread_mutex_lock(&global_lock);
     else {
         for (int i=0;i<N;i++)
@@ -92,8 +93,7 @@ int check(){
         u64 v = vars[vars[i].in1].value + vars[vars[i].in2].value;
         if (v != vars[i].value){
             printf("check failed for %d: %llu != %llu + %llu\n",i,(unsigned long long)vars[i].value,(unsigned long long)vars[vars[i].in1].value,(unsigned long long)vars[vars[i].in2].value);
-            ok = 0;
-            break;
+            exit(1);
         }
     }
     if (use_global) pthread_mutex_unlock(&global_lock);
@@ -101,7 +101,7 @@ int check(){
         for (int i=0;i<N;i++)
             pthread_mutex_unlock(&vars[i].lock);
     }
-    return ok;
+    return 1;
 }
 
 typedef struct {
@@ -148,10 +148,29 @@ int main(int argc, char** argv){
         args[i].ops=ops;
         args[i].seed=1000+i;
         pthread_create(&tids[i],NULL,thread_func,&args[i]);
-        
     }
-
-    
-
+    int tick=0;
+    while(1){
+        pthread_mutex_lock(&done_lock);
+        if (workers_done>=threads)
+            {
+                pthread_mutex_unlock(&done_lock);
+                break;
+            }
+        pthread_mutex_unlock(&done_lock);
+        usleep(1000);
+        if(++tick%5==0)check(); //so about every 5 ms
+    }
+    for (int i = 0; i < threads; i++)
+        pthread_join(tids[i], NULL);
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    double secs = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+    check();
+    printf("threads=%d ops=%d vars=%d primary=%d mode=%s time=%.3f s\n",
+           threads, ops, N, NP, use_global ? "global" : "fine", secs);
+    printf("PASS\n");
+    free(tids);
+    free(args);
+    return 0;
 
 }
