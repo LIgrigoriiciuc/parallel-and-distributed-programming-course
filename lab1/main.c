@@ -135,6 +135,7 @@ int main(int argc, char** argv){
         return 1;
     }
     srand(42); //worker threads won't use this, they have 1000,1001 etc.
+    //srand(time(NULL))
     build_graph();
     if (!check()) {
         printf("check failed after build_graph\n");
