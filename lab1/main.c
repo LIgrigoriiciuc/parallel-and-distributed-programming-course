@@ -86,7 +86,7 @@ void update(int pid, u64 new_value){
 int check(){
     if (use_global) pthread_mutex_lock(&global_lock);
     else {
-        for (int i=0;i<N;i++)
+        for (int i=0;i<NP;i++)
             pthread_mutex_lock(&vars[i].lock);
     }
     for (int i=NP;i<N;i++){
@@ -98,7 +98,7 @@ int check(){
     }
     if (use_global) pthread_mutex_unlock(&global_lock);
     else {
-        for (int i=0;i<N;i++)
+        for (int i=0;i<NP;i++)
             pthread_mutex_unlock(&vars[i].lock);
     }
     return 1;
@@ -168,7 +168,6 @@ int main(int argc, char** argv){
     check();
     printf("threads=%d ops=%d vars=%d primary=%d mode=%s time=%.3f s\n",
            threads, ops, N, NP, use_global ? "global" : "fine", secs);
-    printf("PASS\n");
     free(tids);
     free(args);
     return 0;

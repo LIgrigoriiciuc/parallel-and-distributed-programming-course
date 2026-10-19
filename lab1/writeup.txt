@@ -1,0 +1,74 @@
+LAB 1 - Problem 3: summation with fixed structure of inputs
+
+MODEL
+  PRIMARY   : ids 0..NP-1    input data, set from outside
+  SECONDARY : ids NP..N-1    value[s] = value[in1[s]] + value[in2[s]],  in1,in2 < s (no cycles)
+  update(p) : delta = new - old;  value[s] += delta * mult[p][s]   for every s in affected[p]
+              mult = number of paths p -> s;  affected[p] sorted by id
+
+MUTEXES
+  lock[i]      -> protects value[i]           (one MUTEX per variable)
+  done_lock    -> protects workers_done       (counter of finished threads)
+  global_lock  -> protects everything         (global mode only, for comparison)
+
+INVARIANT (the rule the MUTEXES must keep true)
+  for every SECONDARY s: value[s] = value[in1[s]] + value[in2[s]]
+  update() breaks it for a moment, the MUTEXES hide that moment from check()
+
+PROGRAM FLOW (in order)
+  1. MAIN    build_graph()                          single thread, no MUTEX needed
+  2. MAIN    check()                                LOCK lock[0..NP-1] (PRIMARY only), ascending
+                                                      -> VERIFY all SECONDARY -> UNLOCK all
+  3. MAIN    start timer, CREATE threads
+  4. WORKER  update(p), repeated ops times:
+               LOCK lock[p]                         held for the whole update
+               for s in affected[p], ascending id:
+                 LOCK lock[s] -> value[s] += delta * mult -> UNLOCK lock[s]
+               UNLOCK lock[p]
+  5. WORKER  when finished:
+               LOCK done_lock -> workers_done++ -> UNLOCK done_lock
+  6. MAIN    loop until all workers are done:
+               LOCK done_lock -> READ workers_done -> UNLOCK done_lock
+               if workers_done == threads: STOP loop
+               else SLEEP 1 ms; every 5th round (~5 ms): check()
+  7. MAIN    JOIN all threads, stop timer
+  8. MAIN    check() (final), print time
+
+RULES
+  LOCK ORDER      : always ascending id (p < every s in affected[p])
+  DEADLOCK        : none, a thread only WAITs for ids higher than the ones it holds;
+                    check() holds only PRIMARY MUTEXES, never a SECONDARY one
+  done_lock       : held for one read or one increment, never while holding another MUTEX,
+                    so it cannot take part in a deadlock
+  CHECK vs UPDATE : every update holds lock[p] for its whole duration, and check() holds
+                    ALL lock[p] -> no update is running, SECONDARY values cannot change
+                    -> check() never sees a half-done update
+  INDEPENDENCE    : updates on different primaries WAIT only if they share an s,
+                    and only for one addition
+  GLOBAL MODE     : update() and check() LOCK only global_lock; the rest is the same
+
+SETUP
+  cpu       : AMD Ryzen 7 7445HS, 6 cores, 12 logical CPUs
+  os        : Ubuntu under WSL2 on Windows   (add: cat /etc/os-release ; uname -r)
+  compiler  : gcc 15.2.0, -Wall -Wextra -pthread, with and without -O2
+  data      : 1000 vars (500 primary) | 20000 vars (10000 primary)
+  threads   : 1, 4, 8
+  work      : 800000 updates per run in total, split evenly among threads
+  timing    : wall clock, clock_gettime(CLOCK_MONOTONIC)
+
+RESULTS (seconds, 1 run per cell)
+  vars   threads   fine -O2   global -O2   fine no -O2   global no -O2
+  1000   1         0.032      0.020        0.037         0.024
+  1000   4         0.035      0.073        0.035         0.101
+  1000   8         0.027      0.096        0.031         0.126
+  20000  1         0.046      0.027        0.051         0.035
+  20000  4         0.031      0.090        0.037         0.122
+  20000  8         0.020      0.115        0.022         0.152
+
+CONCLUSIONS
+  fine,   1 -> 8 threads (20000 vars) : 0.046 -> 0.020 s   (2.3x faster)
+  global, 1 -> 8 threads (20000 vars) : 0.027 -> 0.115 s   (4.3x slower)
+  8 threads, global / fine            : 3.6x (1000 vars), 5.8x (20000 vars)
+  1 thread                            : global faster (several MUTEXES per update, no parallelism)
+  more variables                      : fewer clashes on the same MUTEX, fine gains more
+  without -O2                         : 11 of 12 runs 10-40% slower, same fine / global relation
