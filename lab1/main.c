@@ -21,6 +21,7 @@ int NP; //number of primary variables
 int use_global; //0=one mutex per variable fine grained
 int workers_done = 0;
 pthread_mutex_t done_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t global_lock = PTHREAD_MUTEX_INITIALIZER;
 
 void build_graph(){
     vars = calloc(N, sizeof(Var));
@@ -104,7 +105,7 @@ int check(){
 }
 
 typedef struct {
-    int ops;
+    int ops; //how many updates the thread will do
     unsigned int seed;
 } ThreadArgs;
 
@@ -121,13 +122,36 @@ void *thread_func(void *arg){
     return NULL;
 }
     
-void *work(void *arg){
-    printf("hello from the thread\n");
-    return NULL;
-}
-int main(){
-    pthread_t t;
-    pthread_create(&t,NULL,work,NULL);
-    pthread_join(t,NULL);
-    return 0;
+int main(int argc, char** argv){
+    int threads=4,ops=100000;
+    N=1000;NP=500; use_global=0;
+    if(argc > 1) threads=atoi(argv[1]);
+    if (argc >2) ops = atoi(argv[2]);
+    if (argc > 3) N = atoi(argv[3]);
+    if (argc > 4) NP = atoi(argv[4]);
+    if (argc>5) use_global=(strcmp(argv[5], "global_lock") == 0);
+    if (threads < 1 || ops < 1 || NP < 2 || N <= NP){
+        fprintf(stderr, "bad arguments (need threads>=1, ops>=1, 2<=primary<vars)\n");
+        return 1;
+    }
+    srand(42); //worker threads won't use this, they have 1000,1001 etc.
+    build_graph();
+    if (!check()) {
+        printf("check failed after build_graph\n");
+        return 1;
+    }
+    pthread_t *tids = malloc(threads*sizeof(pthread_t));
+    ThreadArgs *args = malloc(threads*sizeof(ThreadArgs));
+    struct timespec start, end; //built-in struct
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < threads; i++){
+        args[i].ops=ops;
+        args[i].seed=1000+i;
+        pthread_create(&tids[i],NULL,thread_func,&args[i]);
+        
+    }
+
+    
+
+
 }
