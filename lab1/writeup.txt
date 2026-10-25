@@ -65,6 +65,11 @@ RESULTS (seconds, 1 run per cell)
   20000  4         0.031      0.090        0.037         0.122
   20000  8         0.020      0.115        0.022         0.152
 
+MORE OPS => SLOWER (MORE WORK)
+MORE VARS => FASTER (FOR MORE THREADS AT FINE GRAINED, LESS CLASHES)
+MORE THREADS => FASTER UP TO 16 TESTED (FINE GRAINED)
+GLOBAL LOCK => ALWAYS SLOWER ON MORE THREADS
+
 CONCLUSIONS
   fine,   1 -> 8 threads (20000 vars) : 0.046 -> 0.020 s   (2.3x faster)
   global, 1 -> 8 threads (20000 vars) : 0.027 -> 0.115 s   (4.3x slower)

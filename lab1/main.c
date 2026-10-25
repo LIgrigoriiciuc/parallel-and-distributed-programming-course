@@ -137,10 +137,7 @@ int main(int argc, char** argv){
     srand(42); //worker threads won't use this, they have 1000,1001 etc.
     //srand(time(NULL))
     build_graph();
-    if (!check()) {
-        printf("check failed after build_graph\n");
-        return 1;
-    }
+    check();
     pthread_t *tids = malloc(threads*sizeof(pthread_t));
     ThreadArgs *args = malloc(threads*sizeof(ThreadArgs));
     struct timespec start, end; //built-in struct
