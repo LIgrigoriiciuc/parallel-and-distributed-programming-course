@@ -34,28 +34,6 @@ PROGRAM FLOW (in order)
   7. MAIN    JOIN all threads, stop timer
   8. MAIN    check() (final), print time
 
-RULES
-  LOCK ORDER      : always ascending id (p < every s in affected[p])
-  DEADLOCK        : none, a thread only WAITs for ids higher than the ones it holds;
-                    check() holds only PRIMARY MUTEXES, never a SECONDARY one
-  done_lock       : held for one read or one increment, never while holding another MUTEX,
-                    so it cannot take part in a deadlock
-  CHECK vs UPDATE : every update holds lock[p] for its whole duration, and check() holds
-                    ALL lock[p] -> no update is running, SECONDARY values cannot change
-                    -> check() never sees a half-done update
-  INDEPENDENCE    : updates on different primaries WAIT only if they share an s,
-                    and only for one addition
-  GLOBAL MODE     : update() and check() LOCK only global_lock; the rest is the same
-
-SETUP
-  cpu       : AMD Ryzen 7 7445HS, 6 cores, 12 logical CPUs
-  os        : Ubuntu under WSL2 on Windows   (add: cat /etc/os-release ; uname -r)
-  compiler  : gcc 15.2.0, -Wall -Wextra -pthread, with and without -O2
-  data      : 1000 vars (500 primary) | 20000 vars (10000 primary)
-  threads   : 1, 4, 8
-  work      : 800000 updates per run in total, split evenly among threads
-  timing    : wall clock, clock_gettime(CLOCK_MONOTONIC)
-
 RESULTS (seconds, 1 run per cell)
   vars   threads   fine -O2   global -O2   fine no -O2   global no -O2
   1000   1         0.032      0.020        0.037         0.024

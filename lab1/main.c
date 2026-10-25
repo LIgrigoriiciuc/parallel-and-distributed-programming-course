@@ -137,7 +137,11 @@ int main(int argc, char** argv){
     srand(42); //worker threads won't use this, they have 1000,1001 etc.
     //srand(time(NULL))
     build_graph();
+<<<<<<< HEAD
     check();
+=======
+    check());
+>>>>>>> e7081e8e1c9b29410cb74a7f4b2ad198746f94ca
     pthread_t *tids = malloc(threads*sizeof(pthread_t));
     ThreadArgs *args = malloc(threads*sizeof(ThreadArgs));
     struct timespec start, end; //built-in struct
@@ -149,7 +153,7 @@ int main(int argc, char** argv){
     }
     int tick=0;
     while(1){
-        pthread_mutex_lock(&done_lock);
+        pthread_mutex_lock(&done_lock); //against a so-said 'data race'
         if (workers_done>=threads)
             {
                 pthread_mutex_unlock(&done_lock);
